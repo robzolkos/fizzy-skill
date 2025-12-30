@@ -1,6 +1,6 @@
 ---
 name: fizzy
-description: Manage Fizzy boards, cards, and tasks using the fizzy CLI
+description: ALWAYS invoke before running fizzy CLI commands to get correct syntax. Manages boards, cards, steps, comments, and reactions.
 ---
 
 # When to Use This Skill
