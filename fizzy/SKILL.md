@@ -62,6 +62,10 @@ fizzy card create --board BOARD_ID --title "Card" --description_file description
 
 **Important:** Each `attachable_sgid` can only be used once. Upload the file again if you need to attach it to multiple cards or comments.
 
+# Paragraphs in HTML for Card Descriptions and Comments
+
+When creating a card or comment, if there are multiple paragraphs in the card description or comment then place a `<p><br></p>` between the paragraphs. This will add spacing in the view.
+
 # Card Statuses
 
 Cards can have the following statuses:
