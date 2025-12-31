@@ -40,11 +40,17 @@ fizzy upload file /path/to/image.png
 
 ### Card Header/Background Image (only when explicitly requested)
 
-Use `signed_id` with the `--image` flag:
+**Validate the file is an image before uploading** for background images:
 
 ```bash
-SIGNED_ID=$(fizzy upload file header.png | jq -r '.data.signed_id')
-fizzy card create --board BOARD_ID --title "Card" --image "$SIGNED_ID"
+# Verify file is a valid image type
+MIME=$(file --mime-type -b /path/to/header.png)
+if [[ "$MIME" =~ ^image/ ]]; then
+  SIGNED_ID=$(fizzy upload file /path/to/header.png | jq -r '.data.signed_id')
+  fizzy card create --board BOARD_ID --title "Card" --image "$SIGNED_ID"
+else
+  echo "Error: File is not a valid image (detected: $MIME)"
+fi
 ```
 
 ### Inline Images in Rich Text (Descriptions & Comments)
