@@ -15,29 +15,52 @@ JSON
 
 **Never dump raw output.** Use jq to reduce tokens.
 
-## Uploads
+## File Uploads
 
 ```bash
-fizzy upload file PATH              # Upload a file for use in rich text fields
+fizzy upload file PATH              # Upload a file for use in cards/comments
 ```
 
-The upload command returns a `signed_id` that can be used in rich text fields (card descriptions, comment bodies) by embedding it in an action-text-attachment tag:
+The upload command returns **two different IDs** for different purposes:
 
-```html
-<action-text-attachment sgid="SIGNED_ID"></action-text-attachment>
+```bash
+fizzy upload file /path/to/image.png
+# Returns: { "signed_id": "...", "attachable_sgid": "..." }
 ```
 
-**Example workflow:**
-1. Upload the file:
-   ```bash
-   fizzy upload file /path/to/image.png
-   # Returns: {"signed_id": "eyJfcmFpbHMi..."}
-   ```
-2. Use the signed_id in a card description:
-   ```bash
-   fizzy card create --board BOARD_ID --title "My Card" \
-     --description '<p>See image:</p><action-text-attachment sgid="eyJfcmFpbHMi..."></action-text-attachment>'
-   ```
+| ID | Use For |
+|---|---|
+| `signed_id` | Card header/background images (via `--image` flag) |
+| `attachable_sgid` | Inline images in rich text fields (descriptions, comments) |
+
+### Default Behavior for Image Uploads
+
+- **Card images:** Use inline (via `attachable_sgid` in description) by default. Only use background/header image (`signed_id` with `--image` flag) when the user explicitly mentions "background" or "header".
+- **Comment images:** Always inline (via `attachable_sgid`). Comments do not support background images.
+
+### Card Header/Background Image (only when explicitly requested)
+
+Use `signed_id` with the `--image` flag:
+
+```bash
+SIGNED_ID=$(fizzy upload file header.png | jq -r '.data.signed_id')
+fizzy card create --board BOARD_ID --title "Card" --image "$SIGNED_ID"
+```
+
+### Inline Images in Rich Text (Descriptions & Comments)
+
+Use `attachable_sgid` in an `<action-text-attachment>` tag:
+
+```bash
+SGID=$(fizzy upload file image.png | jq -r '.data.attachable_sgid')
+cat > description.html << EOF
+<p>See image:</p>
+<action-text-attachment sgid="$SGID"></action-text-attachment>
+EOF
+fizzy card create --board BOARD_ID --title "Card" --description_file description.html
+```
+
+**Important:** Each `attachable_sgid` can only be used once. Upload the file again if you need to attach it to multiple cards or comments.
 
 # Card Statuses
 
