@@ -1,95 +1,445 @@
 ---
 name: fizzy
-description: Manages Fizzy boards, cards, steps, comments, and reactions. Use when user asks about boards, cards, tasks, backlog or anything Fizzy. 
+description: Manages Fizzy boards, cards, steps, comments, and reactions. Use when user asks about boards, cards, tasks, backlog or anything Fizzy.
 ---
 
-# fizzy
+# Fizzy CLI Skill
 
-Manage Fizzy boards, cards, steps, comments and reactions.  Run `fizzy --help` for all flags.  Each sub-command also has a `--help` flag.
+Manage Fizzy boards, cards, steps, comments, and reactions.
 
-## Output format 
+## Quick Reference
 
-JSON
+| Resource | List | Show | Create | Update | Delete |
+|----------|------|------|--------|--------|--------|
+| board | `board list` | `board show ID` | `board create` | `board update ID` | `board delete ID` |
+| card | `card list` | `card show NUMBER` | `card create` | `card update NUMBER` | `card delete NUMBER` |
+| column | `column list --board ID` | `column show ID --board ID` | `column create` | `column update ID` | `column delete ID` |
+| comment | `comment list --card NUMBER` | `comment show ID --card NUMBER` | `comment create` | `comment update ID` | `comment delete ID` |
+| step | - | `step show ID --card NUMBER` | `step create` | `step update ID` | `step delete ID` |
+| reaction | `reaction list` | - | `reaction create` | - | `reaction delete ID` |
+| tag | `tag list` | - | - | - | - |
+| user | `user list` | `user show ID` | - | - | - |
+| notification | `notification list` | - | - | - | - |
 
-## Usage Patterns
+---
 
-**Never dump raw output.** Use jq to reduce tokens.
+## ID Formats
 
-## File Uploads
+**IMPORTANT:** Cards use TWO identifiers:
 
-```bash
-fizzy upload file PATH              # Upload a file for use in cards/comments
+| Field | Format | Use For |
+|-------|--------|---------|
+| `id` | `03fe4rug9kt1mpgyy51lq8i5i` | Internal ID (in JSON responses) |
+| `number` | `579` | CLI commands (`card show`, `card update`, etc.) |
+
+**All card CLI commands use the card NUMBER, not the ID.**
+
+Other resources (boards, columns, comments, steps, reactions, users) use their `id` field.
+
+---
+
+## Response Structure
+
+All responses follow this structure:
+
+```json
+{
+  "success": true,
+  "data": { ... },           // Single object or array
+  "meta": {
+    "timestamp": "2026-01-12T21:21:48Z"
+  }
+}
 ```
 
-The upload command returns **two different IDs** for different purposes:
+**List responses with pagination:**
+```json
+{
+  "success": true,
+  "data": [ ... ],
+  "pagination": {
+    "has_next": true,
+    "next_url": "https://..."
+  },
+  "meta": { ... }
+}
+```
+
+**Error responses:**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Not Found",
+    "status": 404
+  },
+  "meta": { ... }
+}
+```
+
+**Create/update responses include location:**
+```json
+{
+  "success": true,
+  "data": { ... },
+  "location": "/6102600/cards/579.json",
+  "meta": { ... }
+}
+```
+
+---
+
+## Global Flags
+
+All commands support:
+
+| Flag | Description |
+|------|-------------|
+| `--account SLUG` | Account slug (for multi-account users) |
+| `--pretty` | Pretty-print JSON output |
+| `--verbose` | Show request/response details |
+
+---
+
+## Pagination
+
+List commands use `--page` for pagination. There is NO `--limit` flag.
 
 ```bash
-fizzy upload file /path/to/image.png
+# Get first page (default)
+fizzy card list --page 1
+
+# Get specific number of results using jq
+fizzy card list --page 1 | jq '.data[:5]'
+
+# Fetch ALL pages at once
+fizzy card list --all
+```
+
+Commands supporting `--all` and `--page`:
+- `board list`
+- `card list`
+- `comment list`
+- `tag list`
+- `user list`
+- `notification list`
+
+---
+
+## Common jq Patterns
+
+### Reducing Output
+
+```bash
+# Card summary (most useful)
+fizzy card list | jq '[.data[] | {number, title, status, board: .board.name}]'
+
+# First N items
+fizzy card list | jq '.data[:5]'
+
+# Just IDs
+fizzy board list | jq '[.data[].id]'
+
+# Specific fields from single item
+fizzy card show 579 | jq '.data | {number, title, status, golden}'
+```
+
+### Filtering
+
+```bash
+# Cards with a specific status
+fizzy card list --all | jq '[.data[] | select(.status == "published")]'
+
+# Golden cards only
+fizzy card list --indexed-by golden | jq '[.data[] | {number, title}]'
+
+# Cards with steps
+fizzy card show 579 | jq '.data.steps'
+```
+
+### Extracting Nested Data
+
+```bash
+# Comment text only
+fizzy comment list --card 579 | jq '[.data[].body.plain_text]'
+
+# Step completion status
+fizzy card show 579 | jq '[.data.steps[] | {content, completed}]'
+```
+
+---
+
+## Command Reference
+
+### Identity
+
+```bash
+fizzy identity show                    # Show your identity and accessible accounts
+```
+
+### Boards
+
+```bash
+fizzy board list [--page N] [--all]
+fizzy board show BOARD_ID
+fizzy board create --name "Name" [--all_access true/false] [--auto_postpone_period N]
+fizzy board update BOARD_ID [--name "Name"] [--all_access true/false] [--auto_postpone_period N]
+fizzy board delete BOARD_ID
+```
+
+### Cards
+
+#### Listing & Viewing
+
+```bash
+fizzy card list [flags]
+  --board ID                           # Filter by board
+  --column ID                          # Filter by column ID or pseudo: not-yet, maybe, done
+  --assignee ID                        # Filter by assignee user ID
+  --tag ID                             # Filter by tag ID
+  --indexed-by LANE                    # Filter: all, closed, not_now, stalled, postponing_soon, golden
+  --page N                             # Page number
+  --all                                # Fetch all pages
+
+fizzy card show CARD_NUMBER            # Show card details (includes steps)
+```
+
+#### Creating & Updating
+
+```bash
+fizzy card create --board ID --title "Title" [flags]
+  --description "HTML"                 # Card description (HTML)
+  --description_file PATH              # Read description from file
+  --image SIGNED_ID                    # Header image (use signed_id from upload)
+  --tag-ids "id1,id2"                  # Comma-separated tag IDs
+  --created-at TIMESTAMP               # Custom created_at
+
+fizzy card update CARD_NUMBER [flags]
+  --title "Title"
+  --description "HTML"
+  --description_file PATH
+  --image SIGNED_ID
+  --created-at TIMESTAMP
+
+fizzy card delete CARD_NUMBER
+```
+
+#### Status Changes
+
+```bash
+fizzy card close CARD_NUMBER           # Close card (sets closed: true)
+fizzy card reopen CARD_NUMBER          # Reopen closed card
+fizzy card postpone CARD_NUMBER        # Move to Not Now lane
+fizzy card untriage CARD_NUMBER        # Remove from column, back to triage
+```
+
+**Note:** Card `status` field stays "published" for active cards. Use:
+- `closed: true/false` to check if closed
+- `--indexed-by not_now` to find postponed cards
+- `--indexed-by closed` to find closed cards
+
+#### Actions
+
+```bash
+fizzy card column CARD_NUMBER --column ID     # Move to column (use column ID or: maybe, not-yet, done)
+fizzy card assign CARD_NUMBER --user ID       # Toggle user assignment
+fizzy card tag CARD_NUMBER --tag "name"       # Toggle tag (creates tag if needed)
+fizzy card watch CARD_NUMBER                  # Subscribe to notifications
+fizzy card unwatch CARD_NUMBER                # Unsubscribe
+fizzy card golden CARD_NUMBER                 # Mark as golden/starred
+fizzy card ungolden CARD_NUMBER               # Remove golden status
+fizzy card image-remove CARD_NUMBER           # Remove header image
+```
+
+#### Attachments
+
+```bash
+fizzy card attachments show CARD_NUMBER                    # List attachments
+fizzy card attachments download CARD_NUMBER [INDEX]        # Download (1-based index)
+  -o, --output FILENAME                                    # Output filename (single file)
+```
+
+### Columns
+
+Boards have pseudo columns by default: `not-yet`, `maybe`, `done`
+
+```bash
+fizzy column list --board ID
+fizzy column show COLUMN_ID --board ID
+fizzy column create --board ID --name "Name" [--color HEX]
+fizzy column update COLUMN_ID --board ID [--name "Name"] [--color HEX]
+fizzy column delete COLUMN_ID --board ID
+```
+
+### Comments
+
+```bash
+fizzy comment list --card NUMBER [--page N] [--all]
+fizzy comment show COMMENT_ID --card NUMBER
+fizzy comment create --card NUMBER --body "HTML" [--body_file PATH] [--created-at TIMESTAMP]
+fizzy comment update COMMENT_ID --card NUMBER [--body "HTML"] [--body_file PATH]
+fizzy comment delete COMMENT_ID --card NUMBER
+```
+
+### Steps (To-Do Items)
+
+Steps are returned in `card show` response. No separate list command.
+
+```bash
+fizzy step show STEP_ID --card NUMBER
+fizzy step create --card NUMBER --content "Text" [--completed]
+fizzy step update STEP_ID --card NUMBER [--content "Text"] [--completed] [--not_completed]
+fizzy step delete STEP_ID --card NUMBER
+```
+
+### Reactions
+
+```bash
+fizzy reaction list --card NUMBER --comment COMMENT_ID
+fizzy reaction create --card NUMBER --comment COMMENT_ID --content "emoji"
+fizzy reaction delete REACTION_ID --card NUMBER --comment COMMENT_ID
+```
+
+### Tags
+
+Tags are created automatically when using `card tag`. List shows all existing tags.
+
+```bash
+fizzy tag list [--page N] [--all]
+```
+
+### Users
+
+```bash
+fizzy user list [--page N] [--all]
+fizzy user show USER_ID
+```
+
+### Notifications
+
+```bash
+fizzy notification list [--page N] [--all]
+fizzy notification read NOTIFICATION_ID
+fizzy notification read-all
+fizzy notification unread NOTIFICATION_ID
+```
+
+### File Uploads
+
+```bash
+fizzy upload file PATH
 # Returns: { "signed_id": "...", "attachable_sgid": "..." }
 ```
 
 | ID | Use For |
 |---|---|
-| `signed_id` | Card header/background images (via `--image` flag) |
-| `attachable_sgid` | Inline images in rich text fields (descriptions, comments) |
+| `signed_id` | Card header/background images (`--image` flag) |
+| `attachable_sgid` | Inline images in rich text (descriptions, comments) |
 
-### Default Behavior for Image Uploads
+---
 
-- **Card images:** Use inline (via `attachable_sgid` in description) by default. Only use background/header image (`signed_id` with `--image` flag) when the user explicitly mentions "background" or "header".
-- **Comment images:** Always inline (via `attachable_sgid`). Comments do not support background images.
+## Example Workflows
 
-### Card Header/Background Image (only when explicitly requested)
-
-**Important:** When creating a card with a background image, upload the image first to get the `signed_id`, then use it when creating the card.
-
-**Validate the file is an image before uploading** for background images:
+### Create Card with Steps
 
 ```bash
-# Step 1: Verify file is a valid image type
-MIME=$(file --mime-type -b /path/to/header.png)
+# Create the card
+CARD=$(fizzy card create --board BOARD_ID --title "New Feature" \
+  --description "<p>Feature description</p>" | jq -r '.data.number')
+
+# Add steps
+fizzy step create --card $CARD --content "Design the feature"
+fizzy step create --card $CARD --content "Implement backend"
+fizzy step create --card $CARD --content "Write tests"
+```
+
+### Create Card with Inline Image
+
+```bash
+# Upload image
+SGID=$(fizzy upload file screenshot.png | jq -r '.data.attachable_sgid')
+
+# Create description file with embedded image
+cat > desc.html << EOF
+<p>See the screenshot below:</p>
+<action-text-attachment sgid="$SGID"></action-text-attachment>
+EOF
+
+# Create card
+fizzy card create --board BOARD_ID --title "Bug Report" --description_file desc.html
+```
+
+### Create Card with Background Image (only when explicitly requested)
+
+```bash
+# Validate file is an image
+MIME=$(file --mime-type -b /path/to/image.png)
 if [[ ! "$MIME" =~ ^image/ ]]; then
-  echo "Error: File is not a valid image (detected: $MIME)"
+  echo "Error: Not a valid image (detected: $MIME)"
   exit 1
 fi
 
-# Step 2: Upload the image first to get the signed_id
+# Upload and get signed_id
 SIGNED_ID=$(fizzy upload file /path/to/header.png | jq -r '.data.signed_id')
 
-# Step 3: Create the card with the background image
+# Create card with background
 fizzy card create --board BOARD_ID --title "Card" --image "$SIGNED_ID"
 ```
 
-### Inline Images in Rich Text (Descriptions & Comments)
-
-Use `attachable_sgid` in an `<action-text-attachment>` tag:
+### Move Card Through Workflow
 
 ```bash
-SGID=$(fizzy upload file image.png | jq -r '.data.attachable_sgid')
-cat > description.html << EOF
-<p>See image:</p>
-<action-text-attachment sgid="$SGID"></action-text-attachment>
-EOF
-fizzy card create --board BOARD_ID --title "Card" --description_file description.html
+# Move to a column
+fizzy card column 579 --column maybe
+
+# Assign to user
+fizzy card assign 579 --user USER_ID
+
+# Mark as golden (important)
+fizzy card golden 579
+
+# When done, close it
+fizzy card close 579
 ```
 
-**Important:** Each `attachable_sgid` can only be used once. Upload the file again if you need to attach it to multiple cards or comments.
+### Add Comment with Reaction
 
-# Paragraphs in HTML for Card Descriptions and Comments
+```bash
+# Add comment
+COMMENT=$(fizzy comment create --card 579 --body "<p>Looks good!</p>" | jq -r '.data.id')
 
-When creating a card or comment, if there are multiple paragraphs in the card description or comment then place a `<p><br></p>` between the paragraphs. This will add spacing in the view.
+# Add reaction
+fizzy reaction create --card 579 --comment $COMMENT --content "👍"
+```
 
-# Card Statuses
+---
 
-Cards can have the following statuses:
-- `published` - Active/open cards
-- `closed` - Completed cards
-- `not_now` - Postponed cards (marked as not ready)
+## Rich Text Formatting
 
-# Instructions
+Card descriptions and comments support HTML. For multiple paragraphs with spacing:
 
-1. **Determine the action** - What does the user want to do? (list, create, update, move, close, etc.)
-2. **Check for account context** - If the user wants data from a specific account, use `--account=ID` with the numeric account ID
-3. **Run the appropriate fizzy command** using the Bash tool
-4. **Parse the JSON output** to present results clearly.
-5. **Report the outcome** to the user in a readable format include entity identifiers in output so user can copy if needed. 
+```html
+<p>First paragraph.</p>
+<p><br></p>
+<p>Second paragraph with spacing above.</p>
+```
 
+**Note:** Each `attachable_sgid` can only be used once. Upload the file again for multiple uses.
+
+---
+
+## Default Behaviors
+
+- **Card images:** Use inline (via `attachable_sgid` in description) by default. Only use background/header (`signed_id` with `--image`) when user explicitly says "background" or "header".
+- **Comment images:** Always inline. Comments do not support background images.
+
+---
+
+## Workflow Summary
+
+1. **Determine the action** - What does the user want?
+2. **Check for account context** - Use `--account=SLUG` if needed
+3. **Run the fizzy command** using Bash
+4. **Parse JSON output** with jq to reduce tokens
+5. **Report outcome** clearly, including card numbers/entity IDs for reference
