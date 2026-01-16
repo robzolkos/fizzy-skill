@@ -9,17 +9,17 @@ Manage Fizzy boards, cards, steps, comments, and reactions.
 
 ## Quick Reference
 
-| Resource | List | Show | Create | Update | Delete |
-|----------|------|------|--------|--------|--------|
-| board | `board list` | `board show ID` | `board create` | `board update ID` | `board delete ID` |
-| card | `card list` | `card show NUMBER` | `card create` | `card update NUMBER` | `card delete NUMBER` |
-| column | `column list --board ID` | `column show ID --board ID` | `column create` | `column update ID` | `column delete ID` |
-| comment | `comment list --card NUMBER` | `comment show ID --card NUMBER` | `comment create` | `comment update ID` | `comment delete ID` |
-| step | - | `step show ID --card NUMBER` | `step create` | `step update ID` | `step delete ID` |
-| reaction | `reaction list` | - | `reaction create` | - | `reaction delete ID` |
-| tag | `tag list` | - | - | - | - |
-| user | `user list` | `user show ID` | - | - | - |
-| notification | `notification list` | - | - | - | - |
+| Resource | List | Show | Create | Update | Delete | Other |
+|----------|------|------|--------|--------|--------|-------|
+| board | `board list` | `board show ID` | `board create` | `board update ID` | `board delete ID` | `migrate board ID` |
+| card | `card list` | `card show NUMBER` | `card create` | `card update NUMBER` | `card delete NUMBER` | - |
+| column | `column list --board ID` | `column show ID --board ID` | `column create` | `column update ID` | `column delete ID` | - |
+| comment | `comment list --card NUMBER` | `comment show ID --card NUMBER` | `comment create` | `comment update ID` | `comment delete ID` | - |
+| step | - | `step show ID --card NUMBER` | `step create` | `step update ID` | `step delete ID` | - |
+| reaction | `reaction list` | - | `reaction create` | - | `reaction delete ID` | - |
+| tag | `tag list` | - | - | - | - | - |
+| user | `user list` | `user show ID` | - | - | - | - |
+| notification | `notification list` | - | - | - | - | - |
 
 ---
 
@@ -327,6 +327,45 @@ fizzy board show BOARD_ID
 fizzy board create --name "Name" [--all_access true/false] [--auto_postpone_period N]
 fizzy board update BOARD_ID [--name "Name"] [--all_access true/false] [--auto_postpone_period N]
 fizzy board delete BOARD_ID
+```
+
+### Board Migration
+
+Migrate boards between accounts (e.g., from personal to team account).
+
+```bash
+fizzy migrate board BOARD_ID --from SOURCE_SLUG --to TARGET_SLUG [flags]
+  --include-images                       # Migrate card header images and inline attachments
+  --include-comments                     # Migrate card comments
+  --include-steps                        # Migrate card steps (to-do items)
+  --dry-run                              # Preview migration without making changes
+```
+
+**What gets migrated:**
+- Board with same name
+- All columns (preserving order and colors)
+- All cards with titles, descriptions, timestamps, and tags
+- Card states (closed, golden, column placement)
+- Optional: header images, inline attachments, comments, and steps
+
+**What cannot be migrated:**
+- Card creators (become the migrating user)
+- Card numbers (new sequential numbers in target)
+- Comment authors (become the migrating user)
+- User assignments (team must reassign manually)
+
+**Requirements:** You must have API access to both source and target accounts. Verify with `fizzy identity show`.
+
+```bash
+# Preview migration first
+fizzy migrate board BOARD_ID --from personal --to team-account --dry-run
+
+# Basic migration
+fizzy migrate board BOARD_ID --from personal --to team-account
+
+# Full migration with all content
+fizzy migrate board BOARD_ID --from personal --to team-account \
+  --include-images --include-comments --include-steps
 ```
 
 ### Cards
