@@ -12,7 +12,8 @@ Manage Fizzy boards, cards, steps, comments, and reactions.
 | Resource | List | Show | Create | Update | Delete | Other |
 |----------|------|------|--------|--------|--------|-------|
 | board | `board list` | `board show ID` | `board create` | `board update ID` | `board delete ID` | `migrate board ID` |
-| card | `card list` | `card show NUMBER` | `card create` | `card update NUMBER` | `card delete NUMBER` | - |
+| card | `card list` | `card show NUMBER` | `card create` | `card update NUMBER` | `card delete NUMBER` | `card move NUMBER` |
+| search | `search QUERY` | - | - | - | - | - |
 | column | `column list --board ID` | `column show ID --board ID` | `column create` | `column update ID` | `column delete ID` | - |
 | comment | `comment list --card NUMBER` | `comment show ID --card NUMBER` | `comment create` | `comment update ID` | `comment delete ID` | - |
 | step | - | `step show ID --card NUMBER` | `step create` | `step update ID` | `step delete ID` | - |
@@ -46,17 +47,29 @@ All responses follow this structure:
 {
   "success": true,
   "data": { ... },           // Single object or array
+  "summary": "4 boards",     // Human-readable description
   "meta": {
     "timestamp": "2026-01-12T21:21:48Z"
   }
 }
 ```
 
+**Summary field formats:**
+| Command | Example Summary |
+|---------|-----------------|
+| `board list` | "5 boards" |
+| `board show ID` | "Board: Engineering" |
+| `card list` | "42 cards (page 1)" or "42 cards (all)" |
+| `card show 123` | "Card #123: Fix login bug" |
+| `search "bug"` | "7 results for \"bug\"" |
+| `notification list` | "8 notifications (3 unread)" |
+
 **List responses with pagination:**
 ```json
 {
   "success": true,
   "data": [ ... ],
+  "summary": "10 cards (page 1)",
   "pagination": {
     "has_next": true,
     "next_url": "https://..."
@@ -242,6 +255,7 @@ fizzy card list --all
 Commands supporting `--all` and `--page`:
 - `board list`
 - `card list`
+- `search`
 - `comment list`
 - `tag list`
 - `user list`
@@ -319,6 +333,30 @@ fizzy comment list --card 579 | jq '.data | length'
 fizzy identity show                    # Show your identity and accessible accounts
 ```
 
+### Search
+
+Quick text search across cards. Multiple words are treated as separate terms (AND).
+
+```bash
+fizzy search QUERY [flags]
+  --board ID                           # Filter by board
+  --assignee ID                        # Filter by assignee user ID
+  --tag ID                             # Filter by tag ID
+  --indexed-by LANE                    # Filter: all, closed, not_now, golden
+  --sort ORDER                         # Sort: newest, oldest, or latest (default)
+  --page N                             # Page number
+  --all                                # Fetch all pages
+```
+
+**Examples:**
+```bash
+fizzy search "bug"                     # Search for "bug"
+fizzy search "login error"             # Search for cards containing both "login" AND "error"
+fizzy search "bug" --board BOARD_ID    # Search within a specific board
+fizzy search "bug" --indexed-by closed # Include closed cards
+fizzy search "feature" --sort newest   # Sort by newest first
+```
+
 ### Boards
 
 ```bash
@@ -379,6 +417,13 @@ fizzy card list [flags]
   --assignee ID                        # Filter by assignee user ID
   --tag ID                             # Filter by tag ID
   --indexed-by LANE                    # Filter: all, closed, not_now, stalled, postponing_soon, golden
+  --search "terms"                     # Search by text (space-separated for multiple terms)
+  --sort ORDER                         # Sort: newest, oldest, or latest (default)
+  --creator ID                         # Filter by creator user ID
+  --closer ID                          # Filter by user who closed the card
+  --unassigned                         # Only show unassigned cards
+  --created PERIOD                     # Filter by creation: today, yesterday, thisweek, lastweek, thismonth, lastmonth
+  --closed PERIOD                      # Filter by closure: today, yesterday, thisweek, lastweek, thismonth, lastmonth
   --page N                             # Page number
   --all                                # Fetch all pages
 
@@ -423,6 +468,7 @@ fizzy card untriage CARD_NUMBER        # Remove from column, back to triage
 
 ```bash
 fizzy card column CARD_NUMBER --column ID     # Move to column (use column ID or: maybe, not-yet, done)
+fizzy card move CARD_NUMBER --to BOARD_ID     # Move card to a different board
 fizzy card assign CARD_NUMBER --user ID       # Toggle user assignment
 fizzy card tag CARD_NUMBER --tag "name"       # Toggle tag (creates tag if needed)
 fizzy card watch CARD_NUMBER                  # Subscribe to notifications
@@ -581,6 +627,32 @@ fizzy card golden 579
 
 # When done, close it
 fizzy card close 579
+```
+
+### Move Card to Different Board
+
+```bash
+# Move card to another board
+fizzy card move 579 --to TARGET_BOARD_ID
+```
+
+### Search and Filter Cards
+
+```bash
+# Quick search
+fizzy search "bug" | jq '[.data[] | {number, title}]'
+
+# Search with filters
+fizzy search "login" --board BOARD_ID --sort newest
+
+# Find recently created cards
+fizzy card list --created today --sort newest
+
+# Find cards closed this week
+fizzy card list --indexed-by closed --closed thisweek
+
+# Find unassigned cards
+fizzy card list --unassigned --board BOARD_ID
 ```
 
 ### Add Comment with Reaction
