@@ -1,22 +1,38 @@
-# Fizzy Skill for Claude Code
+# Agent Skill for Fizzy
 
-A [Claude Code skill](https://docs.anthropic.com/en/docs/claude-code/skills) that enables natural language management of [Fizzy](https://fizzy.do) boards, cards, and tasks directly from your terminal.
+A skill that enables natural language management of [Fizzy](https://fizzy.do) boards, cards, and tasks directly from your terminal. Works with both [Claude Code](https://docs.anthropic.com/en/docs/claude-code/skills) and [OpenCode](https://opencode.ai/docs/skills.md).
 
 ## What is Fizzy?
 
-[Fizzy](https://fizzy.do) is a task and project management application. This skill allows Claude Code to interact with your Fizzy workspace using the `fizzy` CLI.
+[Fizzy](https://fizzy.do) is a task and project management application. This skill allows your AI coding assistant to interact with your Fizzy workspace using the `fizzy` CLI.
 
 ## Prerequisites
 
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) or [OpenCode](https://opencode.ai) installed
 - [Fizzy CLI](https://github.com/robzolkos/fizzy-cli) installed and authenticated
 
 ## Installation
 
-Copy the `fizzy` folder to your Claude Code skills directory:
+The easiest way to install this skill is using the Fizzy CLI's built-in command:
 
 ```bash
+fizzy skill
+```
+
+This will automatically install the skill to the correct location for both Claude Code (`~/.claude/skills/`) and OpenCode (`~/.config/opencode/skills/`).
+
+### Manual Installation
+
+Alternatively, copy the `fizzy` folder to your skills directory:
+
+**For Claude Code:**
+```bash
 cp -r fizzy ~/.claude/skills/
+```
+
+**For OpenCode:**
+```bash
+cp -r fizzy ~/.config/opencode/skills/
 ```
 
 ## Authentication
@@ -35,7 +51,7 @@ fizzy auth status
 
 ## Example Commands
 
-Once installed, you can use natural language in Claude Code to manage your Fizzy tasks:
+Once installed, you can use natural language to manage your Fizzy tasks:
 
 ### Viewing Your Work
 
@@ -112,6 +128,7 @@ Mark all notifications as read
 ## Documentation
 
 - [Claude Code Skills Documentation](https://docs.anthropic.com/en/docs/claude-code/skills)
+- [OpenCode Skills Documentation](https://opencode.ai/docs/skills.md)
 - [Fizzy](https://fizzy.do)
 
 ## License
