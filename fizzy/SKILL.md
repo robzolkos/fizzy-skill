@@ -521,11 +521,25 @@ fizzy step delete STEP_ID --card NUMBER
 
 ### Reactions
 
+Reactions can be added to cards directly or to comments on cards.
+
 ```bash
+# Card reactions (react directly to a card)
+fizzy reaction list --card NUMBER
+fizzy reaction create --card NUMBER --content "emoji"
+fizzy reaction delete REACTION_ID --card NUMBER
+
+# Comment reactions (react to a specific comment)
 fizzy reaction list --card NUMBER --comment COMMENT_ID
 fizzy reaction create --card NUMBER --comment COMMENT_ID --content "emoji"
 fizzy reaction delete REACTION_ID --card NUMBER --comment COMMENT_ID
 ```
+
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--card` | Yes | Card number (always required) |
+| `--comment` | No | Comment ID (omit for card reactions) |
+| `--content` | Yes (create) | Emoji or text, max 16 characters |
 
 ### Tags
 
@@ -655,13 +669,23 @@ fizzy card list --indexed-by closed --closed thisweek
 fizzy card list --unassigned --board BOARD_ID
 ```
 
+### React to a Card
+
+```bash
+# Add reaction directly to a card
+fizzy reaction create --card 579 --content "👍"
+
+# List reactions on a card
+fizzy reaction list --card 579 | jq '[.data[] | {id, content, reacter: .reacter.name}]'
+```
+
 ### Add Comment with Reaction
 
 ```bash
 # Add comment
 COMMENT=$(fizzy comment create --card 579 --body "<p>Looks good!</p>" | jq -r '.data.id')
 
-# Add reaction
+# Add reaction to the comment
 fizzy reaction create --card 579 --comment $COMMENT --content "👍"
 ```
 
