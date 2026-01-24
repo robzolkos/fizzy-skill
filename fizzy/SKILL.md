@@ -48,6 +48,7 @@ All responses follow this structure:
   "success": true,
   "data": { ... },           // Single object or array
   "summary": "4 boards",     // Human-readable description
+  "breadcrumbs": [ ... ],    // Contextual next actions (omitted when empty)
   "meta": {
     "timestamp": "2026-01-12T21:21:48Z"
   }
@@ -77,6 +78,28 @@ All responses follow this structure:
   "meta": { ... }
 }
 ```
+
+**Breadcrumbs (contextual next actions):**
+
+Responses include a `breadcrumbs` array suggesting what you can do next. Each breadcrumb has:
+- `action`: Short action name (e.g., "comment", "close", "assign")
+- `cmd`: Ready-to-run command with actual values interpolated
+- `description`: Human-readable description
+
+```bash
+fizzy card show 42 | jq '.breadcrumbs'
+```
+
+```json
+[
+  {"action": "comment", "cmd": "fizzy comment create --card 42 --body \"text\"", "description": "Add comment"},
+  {"action": "triage", "cmd": "fizzy card column 42 --column <column_id>", "description": "Move to column"},
+  {"action": "close", "cmd": "fizzy card close 42", "description": "Close card"},
+  {"action": "assign", "cmd": "fizzy card assign 42 --user <user_id>", "description": "Assign user"}
+]
+```
+
+Use breadcrumbs to discover available actions without memorizing the full CLI. Values like card numbers and board IDs are pre-filled; placeholders like `<column_id>` need to be replaced.
 
 **Error responses:**
 ```json
