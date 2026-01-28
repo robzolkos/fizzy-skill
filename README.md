@@ -1,3 +1,5 @@
+# No longer maintained - the SKILL is moved into the Fizzy CLI project https://github.com/robzolkos/fizzy-cli
+
 # Agent Skill for Fizzy
 
 A skill that enables natural language management of [Fizzy](https://fizzy.do) boards, cards, and tasks directly from your terminal. Works with both [Claude Code](https://docs.anthropic.com/en/docs/claude-code/skills) and [OpenCode](https://opencode.ai/docs/skills.md).
